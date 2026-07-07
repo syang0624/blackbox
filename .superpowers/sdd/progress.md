@@ -24,3 +24,4 @@ Task 11: implemented Butterbase AI gateway, intent detection, and IVR decisions 
 Task 12: implemented Asiana RAG seed + IVR context query using expected Butterbase RAG REST path (verification/seed blocked in current shell: node/npm/npx unavailable)
 Task 13: implemented RocketRide extraction with Butterbase fallback (verification blocked in current shell: node/npm/npx unavailable)
 Task 14: implemented orchestrator with coarse SSE, Asiana IVR, fallback graph/card, and frontend-owned handoff (verification blocked in current shell: node/npm/npx unavailable)
+Task 15: implemented REST + SSE routes and server wiring for frontend contract (verification blocked in current shell: node/npm/npx unavailable)
