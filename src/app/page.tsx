@@ -15,6 +15,7 @@ function isAsianaDemo(input: string): boolean {
 export default function Home() {
   const [input, setInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -22,6 +23,7 @@ export default function Home() {
     if (!input.trim() || isSubmitting) return;
 
     setIsSubmitting(true);
+    setError(null);
 
     const userInput = input.trim();
     if (isAsianaDemo(userInput)) {
@@ -36,10 +38,15 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_input: userInput }),
       });
-      if (!res.ok) throw new Error("Failed to create session");
+      if (!res.ok) {
+        const detail = await res.json().catch(() => null);
+        throw new Error(detail?.message ?? "Failed to create session");
+      }
       const session = (await res.json()) as Session;
       router.push(`/session/${session.id}?input=${encodeURIComponent(userInput)}`);
-    } catch {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to create session";
+      setError(message);
       setIsSubmitting(false);
     }
   };
@@ -77,6 +84,11 @@ export default function Home() {
               {isSubmitting ? "Starting..." : "Go"}
             </button>
           </div>
+          {error && (
+            <p className="mt-3 rounded-lg border border-red-900/60 bg-red-950/40 px-4 py-3 text-sm text-red-300">
+              {error}
+            </p>
+          )}
         </form>
 
         {/* Example prompts */}

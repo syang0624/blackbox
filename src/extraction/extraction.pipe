@@ -27,8 +27,8 @@
         "profile": "custom",
         "custom": {
           "apikey": "${ROCKETRIDE_BUTTERBASE_API_KEY}",
-          "base_url": "https://api.butterbase.ai/v1",
-          "model": "anthropic/claude-sonnet-4.5",
+          "base_url": "${ROCKETRIDE_BUTTERBASE_BASE_URL}",
+          "model": "${ROCKETRIDE_BUTTERBASE_MODEL}",
           "modelTotalTokens": 200000
         }
       },
@@ -52,10 +52,7 @@
       "provider": "response_answers",
       "name": "Return Answers",
       "config": {
-        "laneName": "answers",
-        "parameters": {
-          "google": {}
-        }
+        "laneName": "answers"
       },
       "ui": {
         "position": {

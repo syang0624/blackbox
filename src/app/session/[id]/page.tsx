@@ -10,6 +10,8 @@ import { useSession, useSessionMock } from "@/hooks/useSession";
 
 const ASIANA_DEMO_KEYWORDS = ["asiana", "suitcase"];
 
+export const runtime = "edge";
+
 function isAsianaDemo(input: string): boolean {
   const lower = input.toLowerCase();
   return ASIANA_DEMO_KEYWORDS.every((kw) => lower.includes(kw));
