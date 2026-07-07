@@ -1,23 +1,39 @@
 {
-  "name": "blackbox-backend",
+  "name": "blackbox",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "dev:backend": "tsx watch src/server.ts",
+    "dev:frontend": "next dev",
     "start": "tsx src/server.ts",
+    "start:backend": "tsx src/server.ts",
+    "start:frontend": "next start",
+    "build:frontend": "next build",
+    "lint": "eslint",
     "seed:rag": "tsx src/seed/seed-rag.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit -p tsconfig.backend.json",
+    "typecheck:frontend": "tsc --noEmit"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
     "fastify": "^4.28.1",
     "neo4j-driver": "^5.23.0",
+    "next": "16.2.10",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
     "rocketride": "^1.0.0"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^20.14.0",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.10",
+    "tailwindcss": "^4",
     "tsx": "^4.16.0",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
