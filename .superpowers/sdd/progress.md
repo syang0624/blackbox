@@ -14,3 +14,4 @@ Task 1: complete (commits 0bd4fb9..9707dec, review clean)
 Task 2: complete (commits 9707dec..0b7733f, review clean)
 Task 3: IMPLEMENTED (commits 0b7733f..af0b4a0, full suite 8/8 green, tsc clean) — FORMAL TASK-REVIEW PENDING
 Task 4: implemented Butterbase Db adapter + selector (verification blocked in current shell: node/npm/npx unavailable)
+Task 5: implemented per-session SSE hub with replay buffer (verification blocked in current shell: node/npm/npx unavailable)
