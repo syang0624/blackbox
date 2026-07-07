@@ -202,91 +202,7 @@ export function useSessionMock(sessionId: string | null) {
       ]);
     }
 
-    await delay(800);
-    setStatus("dialing");
-    setReasoning((prev) => [
-      ...prev,
-      {
-        id: "r-dial",
-        message: "Dialing Asiana Airlines customer service: 1-800-227-4262",
-        timestamp: new Date().toISOString(),
-        type: "info",
-      },
-    ]);
-
-    // Start playing pre-recorded Asiana phone call audio
-    setAudioPlaying(true);
-
-    await delay(2000);
-    setStatus("navigating");
-
-    const ivrSteps: IvrDecision[] = [
-      {
-        id: "ivr1",
-        prompt_text: "For assistance in English, please press number 2.",
-        decision: "Press 2",
-        reasoning: "User language is English",
-        timestamp: new Date().toISOString(),
-      },
-      {
-        id: "ivr2",
-        prompt_text:
-          "For arrival and departure info press 1, flight schedule press 2, Asiana Club press 3, reservation and ticketing press 4, to speak to an agent press 5.",
-        decision: "Press 5",
-        reasoning: "Need to speak to a human agent for baggage damage claim — not covered by self-service options",
-        timestamp: new Date().toISOString(),
-      },
-      {
-        id: "ivr3",
-        prompt_text:
-          "For U.S. departures or arrival baggage info press 1, seat assignment press 2, unaccompanied minor or pets press 3, contact numbers press 4, internet support press 5, all other inquiries press 6.",
-        decision: "Press 1",
-        reasoning: "User needs U.S. arrival baggage assistance — suitcase was damaged on arrival at SFO",
-        timestamp: new Date().toISOString(),
-      },
-      {
-        id: "ivr4",
-        prompt_text: "Please enter your Asiana Club membership number, followed by the star sign. If you are not a member, please press the pound key.",
-        decision: "Entered 920384712*",
-        reasoning: "Entering Asiana Club membership number from graph to authenticate and expedite service",
-        timestamp: new Date().toISOString(),
-      },
-      {
-        id: "ivr5",
-        prompt_text: "Due to the heavy volume of incoming calls, the estimated wait time is more than 5 minutes.",
-        decision: "Holding",
-        reasoning: "Connected to queue — waiting for human agent. Assembling briefing card in the meantime.",
-        timestamp: new Date().toISOString(),
-      },
-    ];
-
-    for (const step of ivrSteps) {
-      await delay(1800);
-      setIvrLog((prev) => [...prev, step]);
-      setReasoning((prev) => [
-        ...prev,
-        {
-          id: `r-${step.id}`,
-          message: `IVR: ${step.decision} — ${step.reasoning}`,
-          timestamp: new Date().toISOString(),
-          type: "decision",
-        },
-      ]);
-    }
-
-    await delay(1000);
-    setStatus("on_hold");
-    setReasoning((prev) => [
-      ...prev,
-      {
-        id: "r-hold",
-        message: "On hold. Assembling briefing card from graph...",
-        timestamp: new Date().toISOString(),
-        type: "info",
-      },
-    ]);
-
-    await delay(2000);
+    // Briefing card assembles as soon as graph extraction completes
     setBriefing({
       company: "Asiana Airlines",
       user_intent: "File baggage damage claim",
@@ -313,6 +229,120 @@ export function useSessionMock(sessionId: string | null) {
       suggested_opening:
         "Hi, I flew on Asiana flight OZ212 from Seoul Incheon to San Francisco on July 3rd, booking reference XKRF2M. My checked suitcase was damaged during the flight — the handle is broken and there's a crack along the shell. My baggage tag number is 0988-7234. I need to file a damage claim. My Asiana Club number is 920384712.",
     });
+    setReasoning((prev) => [
+      ...prev,
+      {
+        id: "r-briefing",
+        message: "Briefing card assembled from graph data.",
+        timestamp: new Date().toISOString(),
+        type: "info",
+      },
+    ]);
+
+    await delay(800);
+    setStatus("dialing");
+    setReasoning((prev) => [
+      ...prev,
+      {
+        id: "r-dial",
+        message: "Dialing Asiana Airlines customer service: 1-800-227-4262",
+        timestamp: new Date().toISOString(),
+        type: "info",
+      },
+    ]);
+
+    // Start playing pre-recorded Asiana phone call audio
+    setAudioPlaying(true);
+
+    // IVR steps timed to match the pre-recorded Asiana phone call audio.
+    // AI reacts AFTER each prompt finishes speaking.
+    // Absolute times: 0:08, 0:24, 0:44, 1:04, 1:35
+
+    const addIvrStep = (step: IvrDecision) => {
+      setIvrLog((prev) => [...prev, step]);
+      setReasoning((prev) => [
+        ...prev,
+        {
+          id: `r-${step.id}`,
+          message: `IVR: ${step.decision} — ${step.reasoning}`,
+          timestamp: new Date().toISOString(),
+          type: "decision",
+        },
+      ]);
+    };
+
+    // Audio 0:00–0:04: ringing / intro
+    await delay(4000);
+    setStatus("navigating");
+
+    // Audio 0:04–0:07: "For assistance in English, please press number 2."
+    // AI waits for sentence to finish, then presses at 0:08
+    await delay(4000);
+    addIvrStep({
+      id: "ivr1",
+      prompt_text: "For assistance in English, please press number 2.",
+      decision: "Press 2",
+      reasoning: "User language is English",
+      timestamp: new Date().toISOString(),
+    });
+
+    // Audio 0:10–0:22: full main menu plays through all 5 options
+    // AI waits for all options, then presses 5 at 0:24
+    await delay(16000);
+    addIvrStep({
+      id: "ivr2",
+      prompt_text:
+        "For arrival and departure info press 1, flight schedule press 2, Asiana Club press 3, reservation and ticketing press 4, to speak to an agent press 5.",
+      decision: "Press 5",
+      reasoning: "Need to speak to a human agent for baggage damage claim — not covered by self-service options",
+      timestamp: new Date().toISOString(),
+    });
+
+    // Audio 0:25–0:42: full sub-menu plays through all 6 options, "all other inquiries press 6" at 0:42
+    // AI waits for all options, then presses 6 at 0:44
+    await delay(20000);
+    addIvrStep({
+      id: "ivr3",
+      prompt_text:
+        "For U.S. departures or arrival baggage info press 1, seat assignment press 2, unaccompanied minor or pets press 3, contact numbers press 4, internet support press 5, all other inquiries press 6.",
+      decision: "Press 6",
+      reasoning: "Baggage damage claim is not a standard option — route through 'all other inquiries' to reach a representative",
+      timestamp: new Date().toISOString(),
+    });
+
+    // Audio 0:46–1:02: disclaimers, then "enter your membership number... if not a member press pound" finishes at 1:02
+    // AI enters membership at 1:04
+    await delay(20000);
+    addIvrStep({
+      id: "ivr4",
+      prompt_text: "Please enter your Asiana Club membership number, followed by the star sign. If you are not a member, please press the pound key.",
+      decision: "Entered 920384712*",
+      reasoning: "Entering Asiana Club membership number from graph to authenticate and expedite service",
+      timestamp: new Date().toISOString(),
+    });
+
+    // Audio 1:07–1:34: disclaimers + "estimated wait time is more than 5 minutes" finishes at 1:34
+    // Show at 1:35
+    await delay(31000);
+    addIvrStep({
+      id: "ivr5",
+      prompt_text: "Due to the heavy volume of incoming calls, the estimated wait time is more than 5 minutes.",
+      decision: "Holding",
+      reasoning: "Connected to queue — waiting for human agent.",
+      timestamp: new Date().toISOString(),
+    });
+
+    await delay(2000);
+    setStatus("on_hold");
+    setReasoning((prev) => [
+      ...prev,
+      {
+        id: "r-hold",
+        message: "Waiting for human agent...",
+        timestamp: new Date().toISOString(),
+        type: "info",
+      },
+    ]);
 
     // Handoff is triggered externally when the audio ends — not on a timer.
   }, []);
