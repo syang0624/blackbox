@@ -127,13 +127,14 @@ export function useSessionMock(sessionId: string | null) {
   const [ivrLog, setIvrLog] = useState<IvrDecision[]>([]);
   const [briefing, setBriefing] = useState<BriefingCard | null>(null);
   const [reasoning, setReasoning] = useState<ReasoningEntry[]>([]);
+  const [audioPlaying, setAudioPlaying] = useState(false);
 
   const mockSession: Session = {
     id: sessionId || "mock-1",
     user_input:
-      "My United flight to Chicago just got canceled and I need to rebook.",
-    detected_company: "United Airlines",
-    detected_intent: "rebook_flight",
+      "Asiana broke my suitcase on my recent flight and I need to file a damage claim.",
+    detected_company: "Asiana Airlines",
+    detected_intent: "baggage_damage_claim",
     status,
     created_at: new Date().toISOString(),
   };
@@ -145,7 +146,7 @@ export function useSessionMock(sessionId: string | null) {
       ...prev,
       {
         id: "r1",
-        message: 'Identified company: United Airlines. Intent: rebook flight.',
+        message: "Identified company: Asiana Airlines. Intent: baggage damage claim.",
         timestamp: new Date().toISOString(),
         type: "info",
       },
@@ -155,14 +156,15 @@ export function useSessionMock(sessionId: string | null) {
 
     // Add graph nodes progressively
     const nodes: GraphData["nodes"] = [
-      { id: "p1", label: "Jamie Chen", type: "Person" },
-      { id: "b1", label: "ABC123", type: "Booking" },
-      { id: "f1", label: "UA1234 SFO→ORD", type: "Flight" },
-      { id: "a1", label: "United Airlines", type: "Airline" },
-      { id: "l1", label: "MileagePlus #1234567", type: "LoyaltyAccount" },
-      { id: "pm1", label: "Chase ••4242", type: "PaymentMethod" },
-      { id: "ap1", label: "SFO", type: "Airport" },
-      { id: "ap2", label: "ORD", type: "Airport" },
+      { id: "p1", label: "Steven Yang", type: "Person" },
+      { id: "b1", label: "XKRF2M", type: "Booking" },
+      { id: "f1", label: "OZ212 ICN→SFO", type: "Flight" },
+      { id: "a1", label: "Asiana Airlines", type: "Airline" },
+      { id: "l1", label: "Asiana Club #920384712", type: "LoyaltyAccount" },
+      { id: "pm1", label: "Amex ••1087", type: "PaymentMethod" },
+      { id: "ap1", label: "ICN", type: "Airport" },
+      { id: "ap2", label: "SFO", type: "Airport" },
+      { id: "att1", label: "Baggage Tag #0988-7234", type: "Attachment" },
     ];
 
     const edges: GraphData["edges"] = [
@@ -173,6 +175,7 @@ export function useSessionMock(sessionId: string | null) {
       { id: "e5", source: "b1", target: "pm1", type: "PAID_WITH" },
       { id: "e6", source: "f1", target: "ap1", type: "DEPARTS_FROM" },
       { id: "e7", source: "f1", target: "ap2", type: "ARRIVES_AT" },
+      { id: "e8", source: "b1", target: "att1", type: "HAS_BAGGAGE" },
     ];
 
     for (let i = 0; i < nodes.length; i++) {
@@ -202,11 +205,14 @@ export function useSessionMock(sessionId: string | null) {
       ...prev,
       {
         id: "r-dial",
-        message: "Dialing United Airlines customer service: 1-800-864-8331",
+        message: "Dialing Asiana Airlines customer service: 1-800-227-4262",
         timestamp: new Date().toISOString(),
         type: "info",
       },
     ]);
+
+    // Start playing pre-recorded Asiana phone call audio
+    setAudioPlaying(true);
 
     await delay(2000);
     setStatus("navigating");
@@ -214,7 +220,7 @@ export function useSessionMock(sessionId: string | null) {
     const ivrSteps: IvrDecision[] = [
       {
         id: "ivr1",
-        prompt_text: "Press 1 for English, 2 for Spanish",
+        prompt_text: "Press 1 for English, 2 for Korean",
         decision: "Press 1",
         reasoning: "User language is English",
         timestamp: new Date().toISOString(),
@@ -222,24 +228,23 @@ export function useSessionMock(sessionId: string | null) {
       {
         id: "ivr2",
         prompt_text:
-          "Press 1 for existing reservations, 2 for new bookings, 3 for MileagePlus",
-        decision: "Press 1",
-        reasoning: "User has an existing booking that was canceled",
+          "Press 1 for reservations, 2 for baggage, 3 for frequent flyer",
+        decision: "Press 2",
+        reasoning: "User issue is baggage damage — route to baggage department",
         timestamp: new Date().toISOString(),
       },
       {
         id: "ivr3",
-        prompt_text: "Press 0 to speak with an agent",
-        decision: "Press 0",
-        reasoning: "Need human agent for rebooking canceled flight",
+        prompt_text: "Press 1 for lost baggage, 2 for damaged baggage, 3 for delayed baggage",
+        decision: "Press 2",
+        reasoning: "User's suitcase was broken/damaged during transit",
         timestamp: new Date().toISOString(),
       },
       {
         id: "ivr4",
-        prompt_text: "Please say your request in a few words",
-        decision: 'Said: "Agent"',
-        reasoning:
-          "RAG policy: saying 'agent' bypasses AI screening fastest",
+        prompt_text: "Please hold while we connect you to a baggage claims agent",
+        decision: "Holding",
+        reasoning: "Connected to baggage claims queue — waiting for human agent",
         timestamp: new Date().toISOString(),
       },
     ];
@@ -272,30 +277,30 @@ export function useSessionMock(sessionId: string | null) {
 
     await delay(2000);
     setBriefing({
-      company: "United Airlines",
-      user_intent: "Rebook canceled flight",
+      company: "Asiana Airlines",
+      user_intent: "File baggage damage claim",
       identity: {
-        name: "Jamie Chen",
-        loyalty_program: "MileagePlus",
-        loyalty_number: "1234567",
+        name: "Steven Yang",
+        loyalty_program: "Asiana Club",
+        loyalty_number: "920384712",
       },
       booking: {
-        pnr: "ABC123",
-        flight_number: "UA1234",
-        route: "SFO → ORD",
-        date: "2026-07-07",
-        status: "canceled",
+        pnr: "XKRF2M",
+        flight_number: "OZ212",
+        route: "ICN → SFO",
+        date: "2026-07-03",
+        status: "completed",
       },
       payment: {
-        brand: "Chase Sapphire Preferred",
-        last4: "4242",
+        brand: "American Express",
+        last4: "1087",
       },
       context: {
-        user_location: "SFO airport",
-        urgency: "same-day rebooking needed",
+        user_location: "San Francisco",
+        urgency: "Suitcase broken on arrival — need damage claim filed within 7 days",
       },
       suggested_opening:
-        "Hi, I'm on booking ABC123, flight UA1234 from SFO to ORD today. It was canceled — I need to rebook. My MileagePlus number is 1234567 and I paid with the Chase card ending 4242.",
+        "Hi, I flew on Asiana flight OZ212 from Seoul Incheon to San Francisco on July 3rd, booking reference XKRF2M. My checked suitcase was damaged during the flight — the handle is broken and there's a crack along the shell. My baggage tag number is 0988-7234. I need to file a damage claim. My Asiana Club number is 920384712.",
     });
 
     await delay(3000);
@@ -305,7 +310,7 @@ export function useSessionMock(sessionId: string | null) {
       {
         id: "r-handoff",
         message:
-          "Human agent detected: \"Thanks for calling United, this is Sarah.\"",
+          "Human agent detected. Briefing card ready — handing off to user.",
         timestamp: new Date().toISOString(),
         type: "info",
       },
@@ -326,6 +331,7 @@ export function useSessionMock(sessionId: string | null) {
     ivrLog,
     briefing,
     reasoning,
+    audioPlaying,
     error: null,
     isConnected: true,
     createSession,

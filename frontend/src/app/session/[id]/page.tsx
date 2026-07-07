@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, use } from "react";
+import { useEffect, useRef, use } from "react";
 import { useSearchParams } from "next/navigation";
 import PhoneUI from "@/components/PhoneUI";
 import GraphView from "@/components/GraphView";
@@ -16,9 +16,17 @@ export default function SessionPage({
   const { id } = use(params);
   const searchParams = useSearchParams();
   const userInput = searchParams.get("input") || "";
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const { session, graph, ivrLog, briefing, reasoning, createSession } =
-    useSessionMock(id);
+  const {
+    session,
+    graph,
+    ivrLog,
+    briefing,
+    reasoning,
+    audioPlaying,
+    createSession,
+  } = useSessionMock(id);
 
   useEffect(() => {
     if (userInput) {
@@ -26,10 +34,22 @@ export default function SessionPage({
     }
   }, [userInput, createSession]);
 
+  // Play pre-recorded Asiana phone call audio when triggered
+  useEffect(() => {
+    if (audioPlaying && audioRef.current) {
+      audioRef.current.play().catch(() => {
+        // Browser may block autoplay — user will need to interact
+      });
+    }
+  }, [audioPlaying]);
+
   const status = session?.status ?? "idle";
 
   return (
     <div className="flex h-screen flex-col bg-black">
+      {/* Hidden audio element for pre-recorded call */}
+      <audio ref={audioRef} src="/asiana_phone_call.m4a" preload="auto" />
+
       {/* Top bar */}
       <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-3">
         <div className="flex items-center gap-3">

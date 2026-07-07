@@ -60,9 +60,9 @@ export default function Home() {
         {/* Example prompts */}
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           {[
+            "Asiana broke my suitcase on my recent flight",
             "My United flight to Chicago just got canceled",
             "I need a refund for my order",
-            "My internet has been down for 2 days",
           ].map((example) => (
             <button
               key={example}

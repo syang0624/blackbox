@@ -98,7 +98,7 @@ export default function PhoneUI({ status, company, ivrLog }: PhoneUIProps) {
               <PersonIcon className="h-10 w-10 text-emerald-400" />
             </div>
             <p className="mt-3 text-sm font-medium text-emerald-300">
-              &quot;Thanks for calling United, this is Sarah.&quot;
+              Human agent connected
             </p>
           </div>
         )}
