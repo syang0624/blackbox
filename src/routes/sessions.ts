@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import type { Db } from '../db/interface.js';
 import type { SseHub } from '../sse/hub.js';
 import { config } from '../config.js';
+import type { Session } from '../types.js';
 import { runSession } from '../orchestrator/machine.js';
 import { getGraph } from '../graph/query.js';
 import { neo4jConfigured } from '../graph/neo4j.js';
@@ -10,6 +11,17 @@ import { FALLBACK_GRAPH } from '../demo/fallback.js';
 export interface ServerDeps {
   db: Db;
   hub: SseHub;
+}
+
+function toSession(row: Session): Session {
+  return {
+    id: row.id,
+    user_input: row.user_input,
+    detected_company: row.detected_company,
+    detected_intent: row.detected_intent,
+    status: row.status,
+    created_at: row.created_at,
+  };
 }
 
 export function buildServer(deps: ServerDeps): FastifyInstance {
@@ -28,12 +40,12 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     if (!user_input) return reply.code(400).send({ error: 'user_input required' });
     const s = await db.createSession({ user_input });
     void runSession({ db, hub }, s.id);
-    return reply.code(201).send(s);
+    return reply.code(201).send(toSession(s));
   });
 
   app.get<{ Params: { id: string } }>('/sessions/:id', async (req, reply) => {
     const s = await db.getSession(req.params.id);
-    return s ? reply.send(s) : reply.code(404).send({ error: 'not found' });
+    return s ? reply.send(toSession(s)) : reply.code(404).send({ error: 'not found' });
   });
 
   app.get<{ Params: { id: string } }>('/sessions/:id/stream', (req, reply) => {

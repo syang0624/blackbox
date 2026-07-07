@@ -2,9 +2,14 @@ import neo4j, { type Driver } from 'neo4j-driver';
 import { config } from '../config.js';
 
 let driver: Driver | null = null;
+let disabled = false;
 
 export function neo4jConfigured(): boolean {
-  return config.neo4j.configured;
+  return config.neo4j.configured && !disabled;
+}
+
+export function disableNeo4j(): void {
+  disabled = true;
 }
 
 export function getDriver(): Driver {

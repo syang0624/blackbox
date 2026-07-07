@@ -3,7 +3,7 @@ import { logger } from './logger.js';
 import { createDb } from './db/index.js';
 import { createSseHub } from './sse/hub.js';
 import { buildServer } from './routes/sessions.js';
-import { neo4jConfigured, initSchema } from './graph/neo4j.js';
+import { neo4jConfigured, initSchema, disableNeo4j } from './graph/neo4j.js';
 import { rocketrideConfigured, startExtractionPipeline } from './extraction/rocketride.js';
 
 async function main() {
@@ -13,6 +13,7 @@ async function main() {
       logger.info('neo4j schema ready');
     } catch (e) {
       logger.error('neo4j schema init failed', { error: String(e) });
+      disableNeo4j();
     }
   }
   if (rocketrideConfigured()) {
