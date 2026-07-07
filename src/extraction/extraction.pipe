@@ -3,7 +3,12 @@
     {
       "id": "chat_1",
       "provider": "chat",
-      "config": { "hideForm": true, "mode": "Source", "parameters": {}, "type": "chat" }
+      "config": {
+        "hideForm": true,
+        "mode": "Source",
+        "parameters": {},
+        "type": "chat"
+      }
     },
     {
       "id": "llm_1",
@@ -17,17 +22,31 @@
           "modelTotalTokens": 200000
         }
       },
-      "input": [{ "lane": "questions", "from": "chat_1" }]
+      "input": [
+        {
+          "lane": "questions",
+          "from": "chat_1"
+        }
+      ]
     },
     {
       "id": "response_1",
       "provider": "response_answers",
       "config": {},
-      "input": [{ "lane": "answers", "from": "llm_1" }]
+      "input": [
+        {
+          "lane": "answers",
+          "from": "llm_1"
+        }
+      ]
     }
   ],
-  "project_id": "7EC2F8BC-6297-49F2-B311-04DE536AB418",
+  "project_id": "49327d73-2cfd-462a-bfd6-339abdb8d4fc",
   "source": "chat_1",
-  "viewport": { "x": 0, "y": 0, "zoom": 1 },
+  "viewport": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
   "version": 1
 }
