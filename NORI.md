@@ -10,7 +10,7 @@ Work breakdown for the BlackBox backend: Butterbase, Neo4j, agent pipeline, and 
 - [ ] **Butterbase Storage setup** — Create bucket for call recordings, IVR audio snippets, boarding pass PDFs
 - [ ] **Butterbase RAG setup** — Create collection for IVR maps and rebooking policies
 - [ ] **Neo4j setup** — Provision instance, create schema: node labels (`Person`, `Email`, `Booking`, `Flight`, `Airline`, `LoyaltyAccount`, `PaymentMethod`, `Airport`, `Attachment`) and relationship types (PRD §7.2)
-- [ ] **RocketRide setup** — Configure the RocketRide VSCode extension (host URL + API key → auto-writes `ROCKETRIDE_URI`/`ROCKETRIDE_APIKEY` to `.env`), install the `rocketride` npm SDK, add `ROCKETRIDE_OPENAI_KEY` for the pipeline LLM node
+- [ ] **RocketRide setup** — Configure the RocketRide VSCode extension (host URL + API key → auto-writes `ROCKETRIDE_URI`/`ROCKETRIDE_APIKEY` to `.env`), install the `rocketride` npm SDK, and configure the pipeline LLM node to use Butterbase's OpenAI-compatible gateway via `BUTTERBASE_API_KEY`, `BUTTERBASE_BASE_URL`, and `BUTTERBASE_MODEL`
 - [ ] **Mock inbox** — Write ~15 realistic email JSON fixtures (booking confirmation, Expedia itinerary, MileagePlus welcome, Chase statement, cancellation notice, decoys)
 - [ ] **Record United IVR** — Call United, record the IVR tree audio in a one-party-consent state
 
@@ -65,7 +65,7 @@ Work breakdown for the BlackBox backend: Butterbase, Neo4j, agent pipeline, and 
 
 ## Tech Decisions to Make
 
-- [ ] Butterbase AI gateway model choice (GPT-4o? Claude?)
-- [ ] RocketRide pipeline LLM node model (the `llm` node inside `extraction.pipe`)
+- [ ] Butterbase AI gateway model choice (`BUTTERBASE_MODEL`, default `anthropic/claude-3.5-sonnet`)
+- [ ] RocketRide pipeline LLM node model (the `llm_openai_api` node inside `extraction.pipe`, routed through Butterbase)
 - [ ] WebSocket vs SSE for live updates
 - [ ] How to serve pre-recorded IVR audio to frontend (Storage presigned URL? Inline?)

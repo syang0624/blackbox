@@ -6,6 +6,18 @@
 **Approach:** A — graph-first, thin runtime
 **Timeline:** one-day hackathon (NORI.md's 2-day breakdown is a menu to cut from, not a schedule)
 
+> **SCENARIO PIVOT (2026-07-07):** The live demo is now an **Asiana Airlines baggage
+> damage claim** (Steven Yang, flight OZ212 ICN→SFO, booking XKRF2M, Asiana Club
+> #920384712, Amex ••1087, baggage tag #0988-7234), matching the already-built
+> `frontend/` and `asiana_phone_call.m4a` — **not** the United rebooking scenario in
+> the prose below. The backend also conforms to the frontend's exact API contract:
+> port **8000**, SSE at `/sessions/:id/stream`, **coarse** event names
+> (`status`/`graph`/`ivr`/`briefing`/`reasoning`), edges use `source`/`target`,
+> `POST /sessions` returns the full `Session` (`id`), and **the frontend owns handoff**
+> (backend stops at `on_hold`). The implementation plan
+> (`docs/superpowers/plans/2026-07-07-blackbox-backend.md`) is authoritative for the
+> current scenario and contract; treat United references below as historical.
+
 ---
 
 ## 1. Goal
@@ -137,18 +149,20 @@ RETURN b.pnr, f.number, f.date, f.route, l.program, l.number, p.brand, p.last4
 - **Butterbase app:** `app_cyc857msb86y` (`blackbox`), API base `https://api.butterbase.ai`.
 - **App-scoped service key** (`blackbox-backend`, scopes: app + `ai:gateway`) → `BUTTERBASE_API_KEY`.
   Note: an account-scoped key does **not** authorize a newly created app — an app-scoped key is required.
-- **AI model:** `openai/gpt-4o-mini` (provider-prefixed IDs required).
+- **AI model:** `anthropic/claude-sonnet-4.5` via `BUTTERBASE_MODEL` (provider-prefixed IDs required).
 - **Storage:** app-scoped (no named buckets); recorded audio stored as an object, referenced
   by `objectId` in `RECORDED_CALL_AUDIO_OBJECT_ID`, presigned per request.
 - **RAG collection:** `support-knowledge` (shared access) — to be populated with the United
   IVR map and rebooking/weather policy.
 - **RocketRide:** `rocketride` npm SDK against `ROCKETRIDE_URI` (default `https://api.rocketride.ai`);
   `ROCKETRIDE_URI`/`ROCKETRIDE_APIKEY` auto-synced by the VSCode extension. Pipeline LLM node
-  keyed by `ROCKETRIDE_OPENAI_KEY` (must keep the `ROCKETRIDE_` prefix to be substituted).
+  uses RocketRide's OpenAI-compatible API component (`llm_openai_api`) pointed at
+  `BUTTERBASE_BASE_URL=https://api.butterbase.ai/v1`, with `Authorization: Bearer ${BUTTERBASE_API_KEY}`
+  and `model=${BUTTERBASE_MODEL}`.
   Pipeline file `extraction.pipe` (literal-GUID `project_id`, `components` first).
 - **Verified:** Data API read/write/delete, app-scoped AI chat, Neo4j reachability.
 - **Blocked:** Neo4j auth (password rejected — user to supply correct AuraDB password);
-  RocketRide API key + pipeline OpenAI key (user to supply).
+  RocketRide API key + Butterbase API key/model/base URL (user to supply).
 
 ## 8. Error handling & demo safety
 
@@ -173,7 +187,7 @@ RETURN b.pnr, f.number, f.date, f.route, l.program, l.number, p.brand, p.last4
 ## 10. Open items (not blockers to building)
 
 - Neo4j password (user).
-- RocketRide API key (VSCode extension) + `ROCKETRIDE_OPENAI_KEY` for the pipeline LLM node (user).
+- RocketRide API key (VSCode extension) + `BUTTERBASE_API_KEY`/`BUTTERBASE_BASE_URL`/`BUTTERBASE_MODEL` for the pipeline LLM node (user).
 - Recorded United IVR audio asset + its Storage `objectId` (team / recording task).
 - Final mock-inbox content (~15 emails incl. decoys) — authored as fixtures during the build.
 - Exact demo timeline durations — tuned against the real recording during rehearsal.
