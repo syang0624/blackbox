@@ -3,24 +3,42 @@
     {
       "id": "chat_1",
       "provider": "chat",
+      "name": "Chat",
       "config": {
         "hideForm": true,
         "mode": "Source",
         "parameters": {},
         "type": "chat"
+      },
+      "ui": {
+        "position": {
+          "x": 12,
+          "y": 17.5
+        },
+        "nodeType": "default",
+        "formDataValid": true
       }
     },
     {
       "id": "llm_1",
       "provider": "llm_openai_api",
+      "name": "OpenAI-Compatible API",
       "config": {
         "profile": "custom",
         "custom": {
           "apikey": "${ROCKETRIDE_BUTTERBASE_API_KEY}",
-          "base_url": "${ROCKETRIDE_BUTTERBASE_BASE_URL}",
-          "model": "${ROCKETRIDE_BUTTERBASE_MODEL}",
+          "base_url": "https://api.butterbase.ai/v1",
+          "model": "anthropic/claude-sonnet-4.5",
           "modelTotalTokens": 200000
         }
+      },
+      "ui": {
+        "position": {
+          "x": 250,
+          "y": 10
+        },
+        "nodeType": "default",
+        "formDataValid": true
       },
       "input": [
         {
@@ -32,7 +50,21 @@
     {
       "id": "response_1",
       "provider": "response_answers",
-      "config": {},
+      "name": "Return Answers",
+      "config": {
+        "laneName": "answers",
+        "parameters": {
+          "google": {}
+        }
+      },
+      "ui": {
+        "position": {
+          "x": 470,
+          "y": 20
+        },
+        "nodeType": "default",
+        "formDataValid": true
+      },
       "input": [
         {
           "lane": "answers",
@@ -41,12 +73,14 @@
       ]
     }
   ],
-  "project_id": "49327d73-2cfd-462a-bfd6-339abdb8d4fc",
+  "project_id": "7EC2F8BC-6297-49F2-B311-04DE536AB418",
   "source": "chat_1",
-  "viewport": {
-    "x": 0,
-    "y": 0,
-    "zoom": 1
-  },
-  "version": 1
+  "version": 1,
+  "isLocked": false,
+  "snapToGrid": true,
+  "snapGridSize": [
+    10,
+    10
+  ],
+  "docRevision": 11
 }
