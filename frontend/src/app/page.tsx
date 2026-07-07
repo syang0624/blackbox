@@ -68,18 +68,6 @@ export default function Home() {
             </span>
             Asiana broke my suitcase on my recent flight
           </button>
-          {[
-            "My United flight to Chicago just got canceled",
-            "I need a refund for my order",
-          ].map((example) => (
-            <button
-              key={example}
-              onClick={() => setInput(example)}
-              className="rounded-lg border border-zinc-800 px-3 py-1.5 text-xs text-zinc-500 transition-colors hover:border-zinc-600 hover:text-zinc-300"
-            >
-              {example}
-            </button>
-          ))}
         </div>
 
         {/* Permission notice */}

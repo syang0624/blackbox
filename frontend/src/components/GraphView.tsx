@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { GraphData } from "@/types";
+import type { GraphData, GraphNode } from "@/types";
 
 const NODE_COLORS: Record<string, string> = {
   Person: "#3b82f6",
@@ -12,8 +12,19 @@ const NODE_COLORS: Record<string, string> = {
   LoyaltyAccount: "#8b5cf6",
   PaymentMethod: "#10b981",
   Airport: "#06b6d4",
-  Attachment: "#6b7280",
+  Attachment: "#78716c",
 };
+
+const NODE_RADIUS = 24;
+const TOTAL_EXPECTED = 9;
+
+interface NodePosition {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  node: GraphNode;
+}
 
 interface GraphViewProps {
   data: GraphData;
@@ -22,142 +33,194 @@ interface GraphViewProps {
 export default function GraphView({ data }: GraphViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const positionsRef = useRef<Map<string, { x: number; y: number }>>(
-    new Map()
-  );
+  const nodesRef = useRef<Map<string, NodePosition>>(new Map());
+  const animFrameRef = useRef<number>(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const resize = () => {
-      const rect = container.getBoundingClientRect();
-      canvas.width = rect.width * window.devicePixelRatio;
-      canvas.height = rect.height * window.devicePixelRatio;
-      canvas.style.width = `${rect.width}px`;
-      canvas.style.height = `${rect.height}px`;
-      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-    };
-    resize();
-
-    const resizeObserver = new ResizeObserver(resize);
-    resizeObserver.observe(container);
-
-    return () => resizeObserver.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const width = canvas.width / window.devicePixelRatio;
-    const height = canvas.height / window.devicePixelRatio;
-    const centerX = width / 2;
-    const centerY = height / 2;
-
-    // Assign positions to new nodes in a circle layout
-    const positions = positionsRef.current;
-    data.nodes.forEach((node, i) => {
-      if (!positions.has(node.id)) {
-        const angle = (i / Math.max(data.nodes.length, 1)) * Math.PI * 2 - Math.PI / 2;
-        const radius = Math.min(width, height) * 0.32;
-        positions.set(node.id, {
-          x: centerX + Math.cos(angle) * radius,
-          y: centerY + Math.sin(angle) * radius,
-        });
-      }
-    });
-
-    // Animate
-    let animationFrame: number;
     const draw = () => {
-      ctx.clearRect(0, 0, width, height);
+      const rect = container.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const w = rect.width;
+      const h = rect.height;
 
-      // Draw edges
-      data.edges.forEach((edge) => {
+      if (w === 0 || h === 0) {
+        animFrameRef.current = requestAnimationFrame(draw);
+        return;
+      }
+
+      // Sync canvas size
+      if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+      }
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      // Reset transform, scale for retina, clear
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+
+      const cx = w / 2;
+      const cy = h / 2;
+      const positions = nodesRef.current;
+
+      // Add positions for new nodes
+      data.nodes.forEach((node) => {
+        if (!positions.has(node.id)) {
+          const idx = positions.size;
+          const angle = (idx / TOTAL_EXPECTED) * Math.PI * 2 - Math.PI / 2;
+          const spread = Math.min(w, h) * 0.28;
+          positions.set(node.id, {
+            x: cx + Math.cos(angle) * spread + (Math.random() - 0.5) * 20,
+            y: cy + Math.sin(angle) * spread + (Math.random() - 0.5) * 20,
+            vx: 0,
+            vy: 0,
+            node,
+          });
+        }
+      });
+
+      const allNodes = Array.from(positions.values());
+
+      // --- Force simulation ---
+      for (const n of allNodes) {
+        n.vx += (cx - n.x) * 0.003;
+        n.vy += (cy - n.y) * 0.003;
+      }
+
+      for (let i = 0; i < allNodes.length; i++) {
+        for (let j = i + 1; j < allNodes.length; j++) {
+          const a = allNodes[i];
+          const b = allNodes[j];
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          const minDist = NODE_RADIUS * 5;
+          if (dist < minDist) {
+            const force = ((minDist - dist) / dist) * 0.5;
+            a.vx += dx * force;
+            a.vy += dy * force;
+            b.vx -= dx * force;
+            b.vy -= dy * force;
+          }
+        }
+      }
+
+      for (const edge of data.edges) {
         const from = positions.get(edge.source);
         const to = positions.get(edge.target);
-        if (!from || !to) return;
+        if (!from || !to) continue;
+        const dx = to.x - from.x;
+        const dy = to.y - from.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const target = NODE_RADIUS * 4.5;
+        const force = (dist - target) * 0.003;
+        from.vx += (dx / dist) * force;
+        from.vy += (dy / dist) * force;
+        to.vx -= (dx / dist) * force;
+        to.vy -= (dy / dist) * force;
+      }
+
+      const pad = NODE_RADIUS + 16;
+      for (const n of allNodes) {
+        n.vx *= 0.82;
+        n.vy *= 0.82;
+        n.x += n.vx;
+        n.y += n.vy;
+        n.x = Math.max(pad, Math.min(w - pad, n.x));
+        n.y = Math.max(pad + 30, Math.min(h - pad - 16, n.y));
+      }
+
+      // --- Draw edges ---
+      for (const edge of data.edges) {
+        const from = positions.get(edge.source);
+        const to = positions.get(edge.target);
+        if (!from || !to) continue;
 
         ctx.beginPath();
         ctx.moveTo(from.x, from.y);
         ctx.lineTo(to.x, to.y);
-        ctx.strokeStyle = "rgba(255,255,255,0.12)";
+        ctx.strokeStyle = "rgba(255,255,255,0.1)";
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        // Edge label
         const mx = (from.x + to.x) / 2;
         const my = (from.y + to.y) / 2;
-        ctx.font = "9px monospace";
-        ctx.fillStyle = "rgba(255,255,255,0.25)";
+        ctx.font = "8px monospace";
+        ctx.fillStyle = "rgba(255,255,255,0.2)";
         ctx.textAlign = "center";
-        ctx.fillText(edge.type, mx, my - 4);
-      });
+        ctx.textBaseline = "middle";
+        ctx.fillText(edge.type, mx, my - 5);
+      }
 
-      // Draw nodes
-      data.nodes.forEach((node) => {
-        const pos = positions.get(node.id);
-        if (!pos) return;
-
-        const color = NODE_COLORS[node.type] || "#6b7280";
-        const radius = 20;
+      // --- Draw nodes ---
+      for (const pos of allNodes) {
+        const color = NODE_COLORS[pos.node.type] || "#6b7280";
 
         // Glow
+        const grad = ctx.createRadialGradient(
+          pos.x, pos.y, NODE_RADIUS * 0.3,
+          pos.x, pos.y, NODE_RADIUS * 1.5
+        );
+        grad.addColorStop(0, color + "18");
+        grad.addColorStop(1, "transparent");
         ctx.beginPath();
-        ctx.arc(pos.x, pos.y, radius + 4, 0, Math.PI * 2);
+        ctx.arc(pos.x, pos.y, NODE_RADIUS * 1.5, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Fill
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, NODE_RADIUS, 0, Math.PI * 2);
         ctx.fillStyle = color + "20";
         ctx.fill();
 
-        // Circle
+        // Border
         ctx.beginPath();
-        ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = color + "30";
-        ctx.fill();
-        ctx.strokeStyle = color;
+        ctx.arc(pos.x, pos.y, NODE_RADIUS, 0, Math.PI * 2);
+        ctx.strokeStyle = color + "99";
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
         // Label
-        ctx.font = "11px sans-serif";
-        ctx.fillStyle = "#e4e4e7";
+        ctx.font = "bold 10px system-ui, -apple-system, sans-serif";
+        ctx.fillStyle = "#f4f4f5";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-
         const label =
-          node.label.length > 14
-            ? node.label.slice(0, 12) + "…"
-            : node.label;
+          pos.node.label.length > 14
+            ? pos.node.label.slice(0, 12) + "…"
+            : pos.node.label;
         ctx.fillText(label, pos.x, pos.y);
 
-        // Type label below
-        ctx.font = "8px monospace";
+        // Type below
+        ctx.font = "bold 8px monospace";
         ctx.fillStyle = color;
-        ctx.fillText(node.type, pos.x, pos.y + radius + 12);
-      });
+        ctx.fillText(pos.node.type, pos.x, pos.y + NODE_RADIUS + 10);
+      }
 
-      animationFrame = requestAnimationFrame(draw);
+      animFrameRef.current = requestAnimationFrame(draw);
     };
 
-    draw();
-    return () => cancelAnimationFrame(animationFrame);
+    animFrameRef.current = requestAnimationFrame(draw);
+
+    return () => cancelAnimationFrame(animFrameRef.current);
   }, [data]);
 
   if (data.nodes.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-950">
+      <div
+        className="flex items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-950"
+        style={{ width: "100%", height: "100%" }}
+      >
         <div className="text-center text-zinc-600">
-          <GraphIcon className="mx-auto h-16 w-16" />
-          <p className="mt-3 text-sm">
-            Entity graph will appear here
-          </p>
+          <GraphIcon className="mx-auto h-12 w-12" />
+          <p className="mt-2 text-sm">Entity graph will appear here</p>
         </div>
       </div>
     );
@@ -166,17 +229,29 @@ export default function GraphView({ data }: GraphViewProps) {
   return (
     <div
       ref={containerRef}
-      className="relative h-full rounded-2xl border border-zinc-800 bg-zinc-950"
+      className="relative rounded-2xl border border-zinc-800 bg-zinc-950"
+      style={{ width: "100%", height: "100%" }}
     >
-      <div className="absolute left-4 top-3 z-10">
-        <p className="text-xs uppercase tracking-widest text-zinc-500">
+      <div className="absolute left-3 top-2 z-10 flex items-center gap-2">
+        <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-400">
           Entity Graph
         </p>
-        <p className="text-xs text-zinc-600">
-          {data.nodes.length} nodes · {data.edges.length} edges
-        </p>
+        <div className="flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-900/80 px-2 py-0.5">
+          <span className="text-[10px] tabular-nums text-emerald-400">
+            {data.nodes.length}
+          </span>
+          <span className="text-[9px] text-zinc-600">nodes</span>
+          <span className="text-zinc-700">·</span>
+          <span className="text-[10px] tabular-nums text-blue-400">
+            {data.edges.length}
+          </span>
+          <span className="text-[9px] text-zinc-600">edges</span>
+        </div>
       </div>
-      <canvas ref={canvasRef} className="h-full w-full" />
+      <canvas
+        ref={canvasRef}
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+      />
     </div>
   );
 }

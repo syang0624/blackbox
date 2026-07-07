@@ -71,17 +71,25 @@ export default function BriefingCard({ briefing, status, onHangUp }: BriefingCar
         />
       </div>
 
-      {/* Suggested opening */}
-      {isHandoff && (
-        <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
-          <p className="mb-2 text-xs font-medium uppercase tracking-widest text-emerald-400">
-            Say this
-          </p>
-          <p className="text-sm leading-relaxed text-zinc-100">
-            &quot;{briefing.suggested_opening}&quot;
-          </p>
-        </div>
-      )}
+      {/* Suggested opening — always visible when briefing is ready */}
+      <div
+        className={`mt-4 rounded-xl border p-4 transition-all duration-700 ${
+          isHandoff
+            ? "border-emerald-500/30 bg-emerald-500/5"
+            : "border-zinc-800 bg-zinc-900/50"
+        }`}
+      >
+        <p
+          className={`mb-2 text-xs font-medium uppercase tracking-widest ${
+            isHandoff ? "text-emerald-400" : "text-zinc-500"
+          }`}
+        >
+          {isHandoff ? "Say this now" : "Suggested opening"}
+        </p>
+        <p className="text-sm leading-relaxed text-zinc-100">
+          &quot;{briefing.suggested_opening}&quot;
+        </p>
+      </div>
 
       {/* Handoff buttons */}
       {isHandoff && (
