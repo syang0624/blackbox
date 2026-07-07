@@ -5,9 +5,10 @@ import type { BriefingCard as BriefingCardType, SessionStatus } from "@/types";
 interface BriefingCardProps {
   briefing: BriefingCardType | null;
   status: SessionStatus;
+  onHangUp: () => void;
 }
 
-export default function BriefingCard({ briefing, status }: BriefingCardProps) {
+export default function BriefingCard({ briefing, status, onHangUp }: BriefingCardProps) {
   const isHandoff = status === "handoff";
 
   if (!briefing) {
@@ -88,7 +89,10 @@ export default function BriefingCard({ briefing, status }: BriefingCardProps) {
           <button className="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-500">
             I&apos;ve got it from here
           </button>
-          <button className="rounded-xl border border-zinc-700 px-4 py-2.5 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-600 hover:text-zinc-100">
+          <button
+            onClick={onHangUp}
+            className="rounded-xl border border-zinc-700 px-4 py-2.5 text-sm font-medium text-zinc-300 transition-colors hover:border-red-600 hover:text-red-400"
+          >
             End call
           </button>
         </div>

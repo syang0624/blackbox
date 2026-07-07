@@ -128,6 +128,7 @@ export function useSessionMock(sessionId: string | null) {
   const [briefing, setBriefing] = useState<BriefingCard | null>(null);
   const [reasoning, setReasoning] = useState<ReasoningEntry[]>([]);
   const [audioPlaying, setAudioPlaying] = useState(false);
+  const hasStartedRef = useRef(false);
 
   const mockSession: Session = {
     id: sessionId || "mock-1",
@@ -140,7 +141,9 @@ export function useSessionMock(sessionId: string | null) {
   };
 
   const runDemo = useCallback(async () => {
-    // Simulate the full flow with delays
+    if (hasStartedRef.current) return;
+    hasStartedRef.current = true;
+
     setStatus("extracting");
     setReasoning((prev) => [
       ...prev,
@@ -220,31 +223,39 @@ export function useSessionMock(sessionId: string | null) {
     const ivrSteps: IvrDecision[] = [
       {
         id: "ivr1",
-        prompt_text: "Press 1 for English, 2 for Korean",
-        decision: "Press 1",
+        prompt_text: "For assistance in English, please press number 2.",
+        decision: "Press 2",
         reasoning: "User language is English",
         timestamp: new Date().toISOString(),
       },
       {
         id: "ivr2",
         prompt_text:
-          "Press 1 for reservations, 2 for baggage, 3 for frequent flyer",
-        decision: "Press 2",
-        reasoning: "User issue is baggage damage — route to baggage department",
+          "For arrival and departure info press 1, flight schedule press 2, Asiana Club press 3, reservation and ticketing press 4, to speak to an agent press 5.",
+        decision: "Press 5",
+        reasoning: "Need to speak to a human agent for baggage damage claim — not covered by self-service options",
         timestamp: new Date().toISOString(),
       },
       {
         id: "ivr3",
-        prompt_text: "Press 1 for lost baggage, 2 for damaged baggage, 3 for delayed baggage",
-        decision: "Press 2",
-        reasoning: "User's suitcase was broken/damaged during transit",
+        prompt_text:
+          "For U.S. departures or arrival baggage info press 1, seat assignment press 2, unaccompanied minor or pets press 3, contact numbers press 4, internet support press 5, all other inquiries press 6.",
+        decision: "Press 1",
+        reasoning: "User needs U.S. arrival baggage assistance — suitcase was damaged on arrival at SFO",
         timestamp: new Date().toISOString(),
       },
       {
         id: "ivr4",
-        prompt_text: "Please hold while we connect you to a baggage claims agent",
+        prompt_text: "Please enter your Asiana Club membership number, followed by the star sign. If you are not a member, please press the pound key.",
+        decision: "Entered 920384712*",
+        reasoning: "Entering Asiana Club membership number from graph to authenticate and expedite service",
+        timestamp: new Date().toISOString(),
+      },
+      {
+        id: "ivr5",
+        prompt_text: "Due to the heavy volume of incoming calls, the estimated wait time is more than 5 minutes.",
         decision: "Holding",
-        reasoning: "Connected to baggage claims queue — waiting for human agent",
+        reasoning: "Connected to queue — waiting for human agent. Assembling briefing card in the meantime.",
         timestamp: new Date().toISOString(),
       },
     ];
@@ -303,8 +314,12 @@ export function useSessionMock(sessionId: string | null) {
         "Hi, I flew on Asiana flight OZ212 from Seoul Incheon to San Francisco on July 3rd, booking reference XKRF2M. My checked suitcase was damaged during the flight — the handle is broken and there's a crack along the shell. My baggage tag number is 0988-7234. I need to file a damage claim. My Asiana Club number is 920384712.",
     });
 
-    await delay(3000);
+    // Handoff is triggered externally when the audio ends — not on a timer.
+  }, []);
+
+  const triggerHandoff = useCallback(() => {
     setStatus("handoff");
+    setAudioPlaying(false);
     setReasoning((prev) => [
       ...prev,
       {
@@ -335,6 +350,7 @@ export function useSessionMock(sessionId: string | null) {
     error: null,
     isConnected: true,
     createSession,
+    triggerHandoff,
   };
 }
 

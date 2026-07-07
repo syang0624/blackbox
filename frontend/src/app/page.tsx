@@ -59,8 +59,16 @@ export default function Home() {
 
         {/* Example prompts */}
         <div className="mt-6 flex flex-wrap justify-center gap-2">
+          <button
+            onClick={() => setInput("Asiana broke my suitcase on my recent flight")}
+            className="flex items-center gap-2 rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-3 py-1.5 text-xs text-emerald-400 transition-colors hover:border-emerald-600 hover:text-emerald-300"
+          >
+            <span className="rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold uppercase text-white">
+              Live Demo
+            </span>
+            Asiana broke my suitcase on my recent flight
+          </button>
           {[
-            "Asiana broke my suitcase on my recent flight",
             "My United flight to Chicago just got canceled",
             "I need a refund for my order",
           ].map((example) => (
@@ -72,6 +80,18 @@ export default function Home() {
               {example}
             </button>
           ))}
+        </div>
+
+        {/* Permission notice */}
+        <div className="mt-10 rounded-xl border border-zinc-800/50 bg-zinc-950/50 px-5 py-4 text-center">
+          <p className="text-sm text-zinc-400">
+            Non-demo cases use <span className="text-zinc-200">Steven Yang&apos;s</span> real email data and require his
+            presence for permission.
+          </p>
+          <p className="mt-1.5 text-sm text-zinc-500">
+            To schedule a live demo, reach out to{" "}
+            <span className="font-medium text-emerald-400">(41five) 75seven nine2three5</span>
+          </p>
         </div>
       </div>
     </div>

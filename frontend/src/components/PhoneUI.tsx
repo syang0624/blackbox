@@ -18,7 +18,7 @@ const STATUS_DISPLAY: Record<
     color: "text-orange-400",
     pulse: true,
   },
-  on_hold: { label: "On Hold", color: "text-purple-400", pulse: true },
+  on_hold: { label: "AI Working", color: "text-purple-400", pulse: true },
   handoff: {
     label: "Human Connected",
     color: "text-emerald-400",
@@ -31,9 +31,10 @@ interface PhoneUIProps {
   status: SessionStatus;
   company: string | null;
   ivrLog: IvrDecision[];
+  onHangUp: () => void;
 }
 
-export default function PhoneUI({ status, company, ivrLog }: PhoneUIProps) {
+export default function PhoneUI({ status, company, ivrLog, onHangUp }: PhoneUIProps) {
   const display = STATUS_DISPLAY[status];
   const latestIvr = ivrLog[ivrLog.length - 1] ?? null;
 
@@ -88,7 +89,7 @@ export default function PhoneUI({ status, company, ivrLog }: PhoneUIProps) {
                 />
               ))}
             </div>
-            <p className="mt-3 text-sm text-purple-300">Hold music playing</p>
+            <p className="mt-3 text-sm text-purple-300">AI is on the call</p>
           </div>
         )}
 
@@ -137,6 +138,17 @@ export default function PhoneUI({ status, company, ivrLog }: PhoneUIProps) {
           </span>
         </div>
       )}
+
+      {/* Hang up button */}
+      {status !== "idle" && status !== "done" && (
+        <button
+          onClick={onHangUp}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-500"
+        >
+          <HangUpIcon className="h-4 w-4" />
+          Hang Up
+        </button>
+      )}
     </div>
   );
 }
@@ -172,6 +184,24 @@ function PersonIcon({ className }: { className?: string }) {
         strokeLinecap="round"
         strokeLinejoin="round"
         d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
+      />
+    </svg>
+  );
+}
+
+function HangUpIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={1.5}
+      stroke="currentColor"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M15.75 3.75L18 6m0 0l2.25 2.25M18 6l2.25-2.25M18 6l-2.25 2.25m1.5 13.5c-8.284 0-15-6.716-15-15V4.5A2.25 2.25 0 014.5 2.25h1.372c.516 0 .966.351 1.091.852l1.106 4.423c.11.44-.054.902-.417 1.173l-1.293.97a1.062 1.062 0 00-.38 1.21 12.035 12.035 0 007.143 7.143c.441.162.928-.004 1.21-.38l.97-1.293a1.125 1.125 0 011.173-.417l4.423 1.106c.5.125.852.575.852 1.091V19.5a2.25 2.25 0 01-2.25 2.25h-2.25z"
       />
     </svg>
   );
