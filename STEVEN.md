@@ -1,69 +1,76 @@
-# STEVEN — Backend & Agent Logic
+# STEVEN — Frontend & Visualization
 
-Work breakdown for the BlackBox backend: Butterbase, Neo4j, agent pipeline, and call orchestration.
+Work breakdown for the BlackBox frontend: UI, graph visualization, briefing card, phone UI, and demo polish.
 
 ---
 
-## Day 1 Morning — Foundation
+## Day 1 — Setup & Core Components
 
-- [ ] **Butterbase DB setup** — Create tables: `sessions`, `ivr_decisions`, `briefing_cards`, `call_artifacts` (schema in PRD §10.1)
-- [ ] **Butterbase Storage setup** — Create bucket for call recordings, IVR audio snippets, boarding pass PDFs
-- [ ] **Butterbase RAG setup** — Create collection for IVR maps and rebooking policies
-- [ ] **Neo4j setup** — Provision instance, create schema: node labels (`Person`, `Email`, `Booking`, `Flight`, `Airline`, `LoyaltyAccount`, `PaymentMethod`, `Airport`, `Attachment`) and relationship types (PRD §7.2)
-- [ ] **Mock inbox** — Write ~15 realistic email JSON fixtures (booking confirmation, Expedia itinerary, MileagePlus welcome, Chase statement, cancellation notice, decoys)
-- [ ] **Record United IVR** — Call United, record the IVR tree audio in a one-party-consent state
+### Morning — Project Scaffold
 
-## Day 1 Afternoon — Extraction Pipeline
+- [ ] **Project setup** — Initialize frontend app (framework TBD: Next.js / Vite + React). Set up routing, styling (Tailwind recommended), and basic layout
+- [ ] **Home screen** — Single text input: _"What's going on?"_ + recent sessions list (PRD §14)
+- [ ] **Layout for live call screen** — Three-panel layout: left (phone UI), center (graph), right (briefing card), bottom strip (reasoning log)
 
-- [ ] **Email entity extraction prompt** — LLM prompt that takes a raw email and outputs structured entities (person, booking, flight, loyalty, payment)
-- [ ] **Entity → Neo4j ingestion** — Script/service that takes extracted entities and merges nodes + edges into the graph
-- [ ] **Briefing dossier Cypher query** — Write and verify the query that returns PNR, flight number, loyalty number, payment last-4 from the graph (PRD §7.2 example)
-- [ ] **End-to-end extraction test** — Seed mock inbox → extract → ingest → query → verify full dossier returned
+### Afternoon — Component Shells
 
-## Day 1 Evening — RAG & Agent
+- [ ] **Phone UI component** — Left panel. States: dialing → ringing → connected → navigating IVR → on hold → human answered. Show current IVR prompt text and key-press indicators
+- [ ] **Graph visualization component** — Center panel. Use D3.js (or similar) to render Neo4j nodes and edges. Nodes: color-coded by type (Person=blue, Flight=orange, Payment=green, etc.). Should accept JSON graph data from API
+- [ ] **Briefing card component** — Right panel. Renders briefing card JSON (PRD §11) field by field. Fields appear progressively as data arrives
+- [ ] **Reasoning log component** — Bottom strip. Scrolling log of agent decisions with timestamps
 
-- [ ] **Populate RAG corpus** — United IVR map (path to human: `1 → 2 → 0 → "agent"`), rebooking policy doc, weather cancellation policy
-- [ ] **Complaint understanding agent** — Takes user input, returns `detected_company` + `detected_intent`
-- [ ] **IVR navigation agent** — Given IVR prompt text + RAG context, decides which key to press / phrase to speak. Logs reasoning to `ivr_decisions` table
-- [ ] **Call orchestration service** — State machine: `extracting → dialing → navigating → on_hold → handoff → done`. Updates `sessions.status`. Coordinates extraction pipeline + IVR agent + briefing card assembly
-- [ ] **Briefing card assembly** — On hold, run Cypher query, format into briefing card JSON (PRD §11), write to `briefing_cards` table, generate `suggested_opening`
+### Evening — Polish Component Behavior
 
-## Day 2 Morning — API & Integration
+- [ ] **Connect to backend SSE/WebSocket** — Subscribe to session updates. Route events to the correct component (graph updates → graph viz, IVR decisions → phone UI, briefing fields → card)
+- [ ] **Graph animation** — Nodes appear with entrance animation as extraction happens. Edges draw in. Highlight active query path during briefing assembly
+- [ ] **Audio playback integration** — Play pre-recorded IVR audio in the phone UI component, synced with backend timing events
 
-- [ ] **API endpoints for frontend** — Nori needs these:
-  - `POST /sessions` — create session from user complaint
-  - `GET /sessions/:id` — poll session status
-  - `GET /sessions/:id/graph` — current Neo4j graph state (nodes + edges for visualization)
-  - `GET /sessions/:id/ivr-log` — stream of IVR decisions
-  - `GET /sessions/:id/briefing` — briefing card JSON
-  - `GET /sessions/:id/reasoning` — agent reasoning log
-- [ ] **WebSocket or SSE for live updates** — Frontend needs real-time updates for graph assembly, IVR decisions, status transitions, briefing card population
-- [ ] **Wire IVR audio playback triggers** — Send timing events to frontend so phone UI syncs with pre-recorded audio
+## Day 2 — Handoff Moment & Demo Polish
 
-## Day 2 Afternoon — Integration & Polish
+### Morning — The Money Shot
 
-- [ ] **End-to-end run with frontend** — Full flow: complaint → extraction → dial → IVR → hold → handoff
-- [ ] **Rehearse timing against recorded audio** — IVR decision events must sync with the pre-recorded call audio
-- [ ] **Edge case handling** — Ensure graceful behavior if extraction is slow or graph query returns partial results
-- [ ] **Record backup screen capture** — Full successful demo run as fallback
+- [ ] **Handoff animation** — When human picks up: phone UI pulses green, briefing card slides to front/center, suggested opening line in large text (PRD §14)
+- [ ] **Handoff buttons** — _"End call"_ and _"I've got it from here."_
+- [ ] **Status transitions** — Smooth visual transitions between phases: extracting → dialing → navigating → on_hold → handoff
+- [ ] **Hold music visualization** — While on hold, subtle animation (pulsing, waveform) so the screen doesn't look frozen
+
+### Afternoon — Integration & Demo Readiness
+
+- [ ] **End-to-end with Nori's backend** — Full flow test: type complaint → watch graph build → IVR plays → hold → handoff moment
+- [ ] **Timing sync with recorded audio** — Ensure IVR key-press indicators and phase transitions match the pre-recorded call audio
+- [ ] **Responsive tweaks for demo display** — Optimize for the projector/screen resolution being used on stage
+- [ ] **Loading / error states** — Graceful handling if backend is slow or disconnects
+- [ ] **Demo dry run** — Run through the full demo script (PRD §18) with Nori
 
 ---
 
 ## Key Interfaces with Nori
 
-| What Steven provides | What Nori consumes |
+| What Steven needs from Nori | Format |
 |---|---|
-| Session status updates (SSE/WS) | Status bar, phase transitions |
-| Neo4j graph data (nodes + edges JSON) | D3 graph visualization |
-| IVR decision log entries | Phone UI key-press indicators |
-| Briefing card JSON | Briefing card component |
-| Agent reasoning log | Bottom strip reasoning scroll |
-| Audio playback timing events | Phone UI sync with recorded audio |
+| Session creation + status polling | REST: `POST /sessions`, `GET /sessions/:id` |
+| Real-time session updates | SSE or WebSocket stream |
+| Graph data (nodes + edges) | JSON: `GET /sessions/:id/graph` |
+| IVR decision log | JSON array: `GET /sessions/:id/ivr-log` |
+| Briefing card | JSON (PRD §11 schema): `GET /sessions/:id/briefing` |
+| Agent reasoning log | JSON array: `GET /sessions/:id/reasoning` |
+| Audio file URL | Presigned URL from Butterbase Storage |
+| Audio playback timing events | Events via SSE/WS with timestamps |
+
+---
+
+## Design Notes
+
+- **Color palette:** Dark background, light text. Graph nodes color-coded by entity type. Green pulse for handoff moment
+- **Typography:** Monospace for reasoning log. Clean sans-serif for briefing card. Large bold for suggested opening line
+- **Motion:** Subtle and purposeful. Graph nodes fade/scale in. Briefing fields slide in. Handoff is the big animation moment — everything else stays calm
+- **Demo priority:** The two "wow" moments are (1) graph assembling in real time and (2) human picking up with briefing card. Everything else is supporting
 
 ---
 
 ## Tech Decisions to Make
 
-- [ ] Butterbase AI gateway model choice (GPT-4o? Claude?)
-- [ ] WebSocket vs SSE for live updates
-- [ ] How to serve pre-recorded IVR audio to frontend (Storage presigned URL? Inline?)
+- [ ] Framework: Next.js vs Vite + React
+- [ ] Graph library: D3.js vs vis.js vs Neo4j Bloom embed
+- [ ] Styling: Tailwind vs styled-components
+- [ ] State management: React context vs Zustand (keep it simple)
