@@ -18,3 +18,4 @@ Task 5: implemented per-session SSE hub with replay buffer (verification blocked
 Task 6: implemented Neo4j driver + schema constraints (verification blocked in current shell: node/npm/npx unavailable)
 Task 7: implemented Neo4j Asiana entity ingestion (verification blocked in current shell: node/npm/npx unavailable)
 Task 8: implemented graph read + briefing dossier query (verification blocked in current shell: node/npm/npx unavailable)
+Task 9: implemented briefing card assembly + baggage-claim opening (verification blocked in current shell: node/npm/npx unavailable)
