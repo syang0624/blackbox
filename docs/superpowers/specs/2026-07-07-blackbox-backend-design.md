@@ -23,29 +23,40 @@ and **Neo4j** must feel load-bearing, not decorative (a stated success metric).
 
 **In:**
 - Single Fastify (TypeScript) service exposing REST + SSE for the frontend (Steven).
-- Complaint → `{company, intent}` detection (LLM).
-- Mock inbox (~15 emails) → LLM entity extraction → Neo4j graph ingestion.
+- Complaint → `{company, intent}` detection (Butterbase AI).
+- Mock inbox (~15 emails) → **RocketRide** extraction pipeline → structured entities → Neo4j ingestion.
 - Single Cypher briefing query → briefing card JSON (PRD §11).
 - Butterbase RAG corpus (United IVR map + rebooking/weather policy) driving IVR decisions.
-- IVR agent: real LLM decisions matched to the single recorded audio branch.
+- IVR agent: real Butterbase-AI decisions matched to the single recorded audio branch.
 - Orchestrator state machine (`extracting → dialing → navigating → on_hold → handoff → done`)
   emitting SSE events on a timeline synced to the recorded audio.
 - Presigned URL for the recorded call audio (Butterbase Storage).
 
-**Out (cut for one day):** Gmail OAuth, payment gate, multi-branch IVR, RocketRide,
+**AI division of labor** (all three sponsor services load-bearing):
+- **RocketRide** = ingestion brain (batch email → entity extraction pipeline).
+- **Butterbase AI** = real-time agent (complaint→intent, IVR navigation) + RAG.
+- **Neo4j** = assembled memory (stitched identity graph).
+
+**Out (cut for one day):** Gmail OAuth, payment gate, multi-branch IVR,
 real outbound dialing, boarding-pass/attachment vision extraction.
 
 ## 3. Architecture
 
-Single Node/TS service, `PORT=4000`, three modules behind clean seams plus an orchestrator:
+Single Node/TS service, `PORT=4000`, four modules behind clean seams plus an orchestrator:
 
 - **`db` adapter** — Butterbase Data API (`sessions`, `ivr_decisions`, `briefing_cards`,
   `call_artifacts`, `reasoning_events`). In-memory fallback with identical interface when
   Butterbase creds are absent/placeholder, so the service always boots.
 - **`graph` module** — Neo4j driver. Owns schema/constraints, per-email entity MERGE
   (idempotent), and the briefing Cypher query.
-- **`ai` module** — Butterbase AI gateway (OpenAI-compatible). Three prompt functions:
-  `detectCompanyIntent`, `extractEmailEntities`, `decideIvrAction`.
+- **`extraction` module** — RocketRide (`rocketride` SDK, DAP/WebSocket). Owns the
+  `extraction.pipe` pipeline (`chat` → `llm` → `response_answers`); `extractEmailEntities(email)`
+  returns structured-JSON entities via `client.chat({ Question(expectJson:true) })`. Pipeline is
+  started once at boot (`useExisting: true`) and the token reused for every email. Never blocks
+  the event loop (websocket keepalive). Falls back to `ai.extractEmailEntities` (Butterbase) if
+  RocketRide is unreachable, so the demo still runs.
+- **`ai` module** — Butterbase AI gateway (OpenAI-compatible). Real-time agent functions:
+  `detectCompanyIntent`, `decideIvrAction` (+ `extractEmailEntities` fallback).
 - **`orchestrator`** — in-process async state machine per session; ties the modules
   together and pushes events to the SSE hub.
 - **`sse` hub** — per-session event fan-out; REST snapshot endpoints mirror the same state
@@ -55,9 +66,9 @@ Single Node/TS service, `PORT=4000`, three modules behind clean seams plus an or
 
 1. `POST /sessions {user_input}` → `ai.detectCompanyIntent` → insert `sessions` row
    (`status='extracting'`) → return `session_id`. Orchestrator starts (async).
-2. Load the ~15 mock emails. For each: `ai.extractEmailEntities` → `graph` MERGEs nodes/edges.
-   Each new node/edge → SSE `graph.node` / `graph.edge` (drip-fed on a timeline = wow #1).
-   Reasoning lines → `reasoning_events` + SSE `reasoning`.
+2. Load the ~15 mock emails. For each: `extraction.extractEmailEntities` (RocketRide pipeline)
+   → `graph` MERGEs nodes/edges. Each new node/edge → SSE `graph.node` / `graph.edge`
+   (drip-fed on a timeline = wow #1). Reasoning lines → `reasoning_events` + SSE `reasoning`.
 3. `status='dialing'` → `status='navigating'`. Recorded-audio timeline drives IVR beats; at
    each prompt `ai.decideIvrAction(promptText, ragContext)` → write `ivr_decisions` → SSE
    `ivr.decision` + `audio.cue` (key-press indicator + audio sync).
@@ -131,8 +142,13 @@ RETURN b.pnr, f.number, f.date, f.route, l.program, l.number, p.brand, p.last4
   by `objectId` in `RECORDED_CALL_AUDIO_OBJECT_ID`, presigned per request.
 - **RAG collection:** `support-knowledge` (shared access) — to be populated with the United
   IVR map and rebooking/weather policy.
+- **RocketRide:** `rocketride` npm SDK against `ROCKETRIDE_URI` (default `https://api.rocketride.ai`);
+  `ROCKETRIDE_URI`/`ROCKETRIDE_APIKEY` auto-synced by the VSCode extension. Pipeline LLM node
+  keyed by `ROCKETRIDE_OPENAI_KEY` (must keep the `ROCKETRIDE_` prefix to be substituted).
+  Pipeline file `extraction.pipe` (literal-GUID `project_id`, `components` first).
 - **Verified:** Data API read/write/delete, app-scoped AI chat, Neo4j reachability.
-- **Blocked:** Neo4j auth (password rejected — user to supply correct AuraDB password).
+- **Blocked:** Neo4j auth (password rejected — user to supply correct AuraDB password);
+  RocketRide API key + pipeline OpenAI key (user to supply).
 
 ## 8. Error handling & demo safety
 
@@ -146,15 +162,18 @@ RETURN b.pnr, f.number, f.date, f.route, l.program, l.number, p.brand, p.last4
 
 ## 9. Testing
 
-- **Unit:** `extractEmailEntities` fixtures → expected entities; briefing Cypher returns the
-  full dossier from a seeded graph (the NORI.md "end-to-end extraction test").
+- **Unit:** `extractEmailEntities` fixtures → expected entities (RocketRide, with Butterbase
+  fallback path also covered); briefing Cypher returns the full dossier from a seeded graph
+  (the NORI.md "end-to-end extraction test").
 - **Integration:** `POST /sessions` → drive orchestrator → assert the SSE event sequence and
   final briefing card match the demo script (PRD §9 / §18).
-- **Smoke:** startup script pings Butterbase Data API + AI + Neo4j `RETURN 1`.
+- **Smoke:** startup script pings Butterbase Data API + AI + Neo4j `RETURN 1`, and validates
+  the RocketRide pipeline with `client.validate()` before `use()`.
 
 ## 10. Open items (not blockers to building)
 
 - Neo4j password (user).
+- RocketRide API key (VSCode extension) + `ROCKETRIDE_OPENAI_KEY` for the pipeline LLM node (user).
 - Recorded United IVR audio asset + its Storage `objectId` (team / recording task).
 - Final mock-inbox content (~15 emails incl. decoys) — authored as fixtures during the build.
 - Exact demo timeline durations — tuned against the real recording during rehearsal.

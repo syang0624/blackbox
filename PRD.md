@@ -21,7 +21,7 @@ At that moment, BlackBox hands the phone to the user with a briefing card: what 
 
 The user never digs through email while a hold-music timer counts up. They never repeat their name three times to three different AIs. They arrive at the call already prepared.
 
-The MVP is built on **Butterbase** (AI, storage, database, RAG) and **Neo4j** (email entity graph). The demo scenario is a canceled United flight while the user is stranded at the airport.
+The MVP is built on **Butterbase** (AI, storage, database, RAG), **Neo4j** (email entity graph), and **RocketRide** (managed AI extraction pipeline). The demo scenario is a canceled United flight while the user is stranded at the airport.
 
 ---
 
@@ -102,7 +102,7 @@ For the hackathon MVP, BlackBox will NOT:
 
 ## 7. Architecture
 
-Two backends, each doing what it's best at.
+Three services, each doing what it's best at: Butterbase (runtime), Neo4j (memory), and RocketRide (the extraction pipeline that turns raw email into structured entities).
 
 ### 7.1 Butterbase — agent runtime + storage
 
@@ -139,6 +139,18 @@ Butterbase is the runtime: it stores app state, drives the agent, and holds the 
 
 Email retrieval here is not a search problem, it's a traversal problem. Vector search would find each fragment (booking, loyalty, payment) individually and hope the LLM stitches them. The graph makes the stitching explicit, traceable, and demoable on screen.
 
+### 7.4 RocketRide — managed extraction pipeline
+
+The email-to-entities extraction runs as a **RocketRide** pipeline rather than inline LLM calls. Each raw email is fed to a `.pipe` pipeline (`chat` source → `llm` node → `response_answers`) that returns **structured JSON entities** (person, booking, flight, loyalty, payment). Those entities are what get merged into the Neo4j graph.
+
+This makes the division of AI labor clean and each service load-bearing:
+
+- **RocketRide** owns the **ingestion brain** — the batch extraction pipeline over the inbox.
+- **Butterbase AI** owns the **real-time agent** — complaint→intent detection and live IVR navigation decisions, plus RAG.
+- **Neo4j** owns the **assembled memory** — the stitched-together identity graph.
+
+The pipeline is started once at service startup and reused for all emails (RocketRide pipelines are stateful and expensive to spin up per-request).
+
 ---
 
 ## 8. User Flow
@@ -146,7 +158,7 @@ Email retrieval here is not a search problem, it's a traversal problem. Vector s
 1. **User opens BlackBox.** Text box: _"What's going on?"_
 2. **User types:** _"I'm at SFO, my United flight to Chicago just got canceled and I need to rebook."_
 3. **AI identifies the intent and the company.** United Airlines, flight rebooking.
-4. **Email ingestion begins in parallel.** AI extracts entities from inbox, populates Neo4j graph. Visible on screen: graph nodes appearing.
+4. **Email ingestion begins in parallel.** The RocketRide extraction pipeline parses each email into structured entities, which populate the Neo4j graph. Visible on screen: graph nodes appearing.
 5. **System retrieves United's IVR map from Butterbase RAG.** Knows the path to a human agent: `press 1 → 2 → 0 → say "agent"`.
 6. **System places the call.** Phone UI shows dialing, ringing, connected.
 7. **System navigates the IVR.** IVR audio plays, AI decides which key to press based on the recorded prompts. On-screen log shows each decision.
@@ -386,7 +398,7 @@ The phone call audio is pre-recorded. Everything else on stage is live.
 
 **Day 1 afternoon — extraction pipeline**
 
-- Email → entity extraction (LLM prompt).
+- Email → entity extraction (RocketRide `.pipe` pipeline, structured-JSON output).
 - Entity → Neo4j nodes and edges.
 - Cypher query for briefing dossier.
 - Verify: single query returns full dossier from seeded inbox.
@@ -445,7 +457,7 @@ The phone call audio is pre-recorded. Everything else on stage is live.
 
 **Short pitch:** When something breaks and you have to call customer service, BlackBox does the ugly work — identifies the company, finds your booking details in your email, navigates the phone tree, and waits on hold. When a human picks up, you get a briefing card with everything the agent will ask for, already assembled.
 
-**Butterbase + Neo4j pitch:** BlackBox is an agentic product with two backends that each earn their spot. Butterbase runs the runtime — AI, storage, database, RAG. Neo4j runs the memory — the user's fragmented identity, reassembled as a graph. Neither service is decorative. The demo shows both doing load-bearing work in real time.
+**Butterbase + Neo4j + RocketRide pitch:** BlackBox is an agentic product with three services that each earn their spot. Butterbase runs the runtime — AI, storage, database, RAG. Neo4j runs the memory — the user's fragmented identity, reassembled as a graph. RocketRide runs the ingestion — the extraction pipeline that turns raw email into structured entities. None is decorative. The demo shows all three doing load-bearing work in real time.
 
 ---
 
