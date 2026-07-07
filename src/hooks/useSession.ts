@@ -39,6 +39,20 @@ export function useSession(sessionId: string | null) {
   useEffect(() => {
     if (!sessionId) return;
 
+    let cancelled = false;
+    fetch(`${API_BASE}/sessions/${sessionId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((session: Session | null) => {
+        if (!cancelled && session) {
+          setState((prev) => ({ ...prev, session, error: null }));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setState((prev) => ({ ...prev, error: "Session not found" }));
+        }
+      });
+
     const es = new EventSource(`${API_BASE}/sessions/${sessionId}/stream`);
     eventSourceRef.current = es;
 
@@ -91,6 +105,7 @@ export function useSession(sessionId: string | null) {
     };
 
     return () => {
+      cancelled = true;
       es.close();
       eventSourceRef.current = null;
     };

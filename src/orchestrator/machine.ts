@@ -24,6 +24,43 @@ export interface RunDeps {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+function isAsianaDemoInput(input: string): boolean {
+  const lower = input.toLowerCase();
+  return lower.includes('asiana') && lower.includes('suitcase');
+}
+
+function genericGraph(company: string, intent: string, userInput: string): GraphData {
+  return {
+    nodes: [
+      { id: 'Person:customer', type: 'Person', label: 'Customer' },
+      { id: 'Email:complaint', type: 'Email', label: userInput.slice(0, 48) || 'Support request' },
+      { id: 'Airline:company', type: 'Airline', label: company },
+      { id: 'Attachment:intent', type: 'Attachment', label: intent.replace(/_/g, ' ') },
+    ],
+    edges: [
+      { id: 'g1', source: 'Person:customer', target: 'Email:complaint', type: 'SENT_BY' },
+      { id: 'g2', source: 'Email:complaint', target: 'Airline:company', type: 'MENTIONS' },
+      { id: 'g3', source: 'Email:complaint', target: 'Attachment:intent', type: 'MENTIONS' },
+    ],
+  };
+}
+
+function genericCard(company: string, intent: string, userInput: string): BriefingCard {
+  const readableIntent = intent.replace(/_/g, ' ');
+  return {
+    company,
+    user_intent: readableIntent,
+    identity: { name: 'Customer', loyalty_program: '', loyalty_number: '' },
+    booking: { pnr: '', flight_number: '', route: '', date: '', status: '' },
+    payment: { brand: '', last4: '' },
+    context: {
+      user_location: '',
+      urgency: userInput,
+    },
+    suggested_opening: `Hi, I am calling about ${readableIntent} with ${company}. ${userInput}`,
+  };
+}
+
 export async function runSession(deps: RunDeps, sessionId: string): Promise<void> {
   const { db, hub } = deps;
   const stepMs = deps.stepMs ?? 700;
@@ -63,6 +100,42 @@ export async function runSession(deps: RunDeps, sessionId: string): Promise<void
     }
     await db.updateSession(sessionId, { detected_company: company, detected_intent: intent });
     await reason('info', `Identified company: ${company}. Intent: ${intent.replace(/_/g, ' ')}.`);
+
+    if (!isAsianaDemoInput(session.user_input)) {
+      const g = genericGraph(company, intent, session.user_input);
+      hub.publish(sessionId, 'graph', g);
+      await reason('extraction', 'Created a support graph from the customer request.');
+      await sleep(stepMs);
+
+      await setStatus('dialing');
+      await reason('info', `Preparing to contact ${company} support.`);
+      await sleep(stepMs);
+
+      await setStatus('navigating');
+      const prompt = `Route this customer to the best support queue for: ${session.user_input}`;
+      let decision = 'Ask for a human agent';
+      let reasoning = 'The request is specific enough that a human support representative should handle it.';
+      try {
+        const d = await decideIvrAction(prompt, `Company: ${company}\nIntent: ${intent}`);
+        decision = d.decision;
+        reasoning = d.reasoning;
+      } catch (e) {
+        logger.warn('generic ivr decision failed, using default', { error: String(e) });
+      }
+      const row = await db.addIvrDecision({ session_id: sessionId, prompt_text: prompt, decision, reasoning });
+      const ivr: IvrDecision = { id: row.id, prompt_text: prompt, decision, reasoning, timestamp: row.created_at };
+      hub.publish(sessionId, 'ivr', ivr);
+      await reason('decision', `Support routing: ${decision} - ${reasoning}`);
+      await sleep(stepMs);
+
+      await setStatus('on_hold');
+      const card = genericCard(company, intent, session.user_input);
+      await db.saveBriefingCard(sessionId, card, card.suggested_opening);
+      hub.publish(sessionId, 'briefing', card);
+      await reason('info', 'Generated a generic support briefing from the request.');
+      await sleep(holdMs);
+      return;
+    }
 
     for (const email of MOCK_INBOX) {
       try {

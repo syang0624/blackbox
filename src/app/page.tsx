@@ -2,6 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import type { Session } from "@/types";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const ASIANA_DEMO_KEYWORDS = ["asiana", "suitcase"];
+
+function isAsianaDemo(input: string): boolean {
+  const lower = input.toLowerCase();
+  return ASIANA_DEMO_KEYWORDS.every((kw) => lower.includes(kw));
+}
 
 export default function Home() {
   const [input, setInput] = useState("");
@@ -14,12 +23,25 @@ export default function Home() {
 
     setIsSubmitting(true);
 
-    // In production, this would call the backend to create a session.
-    // For now, use a mock ID and pass the input via query param.
-    const sessionId = crypto.randomUUID();
-    router.push(
-      `/session/${sessionId}?input=${encodeURIComponent(input.trim())}`
-    );
+    const userInput = input.trim();
+    if (isAsianaDemo(userInput)) {
+      const sessionId = crypto.randomUUID();
+      router.push(`/session/${sessionId}?input=${encodeURIComponent(userInput)}`);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/sessions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_input: userInput }),
+      });
+      if (!res.ok) throw new Error("Failed to create session");
+      const session = (await res.json()) as Session;
+      router.push(`/session/${session.id}?input=${encodeURIComponent(userInput)}`);
+    } catch {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -73,8 +95,7 @@ export default function Home() {
         {/* Permission notice */}
         <div className="mt-10 rounded-xl border border-zinc-800/50 bg-zinc-950/50 px-5 py-4 text-center">
           <p className="text-sm text-zinc-400">
-            Non-demo cases use <span className="text-zinc-200">Steven Yang&apos;s</span> real email data and require his
-            presence for permission.
+            The Asiana prompt runs the polished live demo. Other prompts connect to the backend and generate a generic support briefing.
           </p>
           <p className="mt-1.5 text-sm text-zinc-500">
             To schedule a live demo, reach out to{" "}

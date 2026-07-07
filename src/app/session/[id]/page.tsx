@@ -12,7 +12,7 @@ const ASIANA_DEMO_KEYWORDS = ["asiana", "suitcase"];
 
 function isAsianaDemo(input: string): boolean {
   const lower = input.toLowerCase();
-  return ASIANA_DEMO_KEYWORDS.some((kw) => lower.includes(kw));
+  return ASIANA_DEMO_KEYWORDS.every((kw) => lower.includes(kw));
 }
 
 export default function SessionPage({
@@ -44,10 +44,10 @@ export default function SessionPage({
   const triggerHandoff = isDemo ? mock.triggerHandoff : () => {};
 
   useEffect(() => {
-    if (userInput) {
+    if (isDemo && userInput) {
       createSession(userInput);
     }
-  }, [userInput, createSession]);
+  }, [isDemo, userInput, createSession]);
 
   // Play pre-recorded Asiana phone call audio when triggered (demo only)
   useEffect(() => {
