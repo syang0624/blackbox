@@ -9,6 +9,8 @@ let token: string | null = null;
 
 const PIPE = new URL('./extraction.pipe', import.meta.url).pathname;
 
+const ROCKETRIDE_ENV_PATTERN = /\$\{ROCKETRIDE_([A-Z0-9_]+)\}/g;
+
 function rocketrideEnv(): Record<string, string> {
   return {
     ...process.env,
@@ -17,7 +19,32 @@ function rocketrideEnv(): Record<string, string> {
     ROCKETRIDE_BUTTERBASE_API_KEY: config.butterbase.apiKey,
     ROCKETRIDE_BUTTERBASE_BASE_URL: config.butterbase.llmBaseUrl,
     ROCKETRIDE_BUTTERBASE_MODEL: config.butterbase.model,
+    ROCKETRIDE_NEO4J_URI: config.neo4j.uri,
+    ROCKETRIDE_NEO4J_USER: config.neo4j.username,
+    ROCKETRIDE_NEO4J_PASSWORD: config.neo4j.password,
+    ROCKETRIDE_NEO4J_DATABASE: config.neo4j.database,
   } as Record<string, string>;
+}
+
+function rocketEnvFrom(env: Record<string, string>): Record<string, string> {
+  const rocketEnv: Record<string, string> = {};
+  for (const [key, value] of Object.entries(env)) {
+    if (key.startsWith('ROCKETRIDE_') && value) rocketEnv[key] = value;
+  }
+  return rocketEnv;
+}
+
+function substitutePipelineEnv<T>(pipeline: T, env: Record<string, string>): T {
+  const json = JSON.stringify(pipeline).replace(ROCKETRIDE_ENV_PATTERN, (_match, key: string) => {
+    const value = env[`ROCKETRIDE_${key}`];
+    return value ?? _match;
+  });
+  return JSON.parse(json) as T;
+}
+
+function loadPipeline(env: Record<string, string>): Record<string, unknown> {
+  const raw = JSON.parse(readFileSync(PIPE, 'utf8')) as Record<string, unknown>;
+  return substitutePipelineEnv(raw, env);
 }
 
 function extractAnswerValue(resp: Record<string, unknown>): unknown {
@@ -55,9 +82,17 @@ export function rocketrideConfigured(): boolean {
 
 export async function startExtractionPipeline(): Promise<void> {
   const env = rocketrideEnv();
-  process.env.ROCKETRIDE_BUTTERBASE_API_KEY = env.ROCKETRIDE_BUTTERBASE_API_KEY;
-  process.env.ROCKETRIDE_BUTTERBASE_BASE_URL = env.ROCKETRIDE_BUTTERBASE_BASE_URL;
-  process.env.ROCKETRIDE_BUTTERBASE_MODEL = env.ROCKETRIDE_BUTTERBASE_MODEL;
+  for (const key of [
+    'ROCKETRIDE_BUTTERBASE_API_KEY',
+    'ROCKETRIDE_BUTTERBASE_BASE_URL',
+    'ROCKETRIDE_BUTTERBASE_MODEL',
+    'ROCKETRIDE_NEO4J_URI',
+    'ROCKETRIDE_NEO4J_USER',
+    'ROCKETRIDE_NEO4J_PASSWORD',
+    'ROCKETRIDE_NEO4J_DATABASE',
+  ] as const) {
+    process.env[key] = env[key];
+  }
 
   client = new RocketRideClient({
     auth: config.rocketride.apikey,
@@ -66,9 +101,9 @@ export async function startExtractionPipeline(): Promise<void> {
     requestTimeout: 60_000,
   });
   await client.connect();
-  const pipeline = JSON.parse(readFileSync(PIPE, 'utf8')) as Record<string, unknown>;
+  const pipeline = loadPipeline(env);
   await client.validate({ pipeline, source: 'chat_1' });
-  const res = await client.use({ filepath: PIPE, useExisting: true });
+  const res = await client.use({ pipeline, useExisting: true, env: rocketEnvFrom(env) });
   token = res.token;
   logger.info('rocketride: extraction pipeline ready', { token });
 }
